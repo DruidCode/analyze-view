@@ -1,0 +1,64 @@
+*,body{margin:0;padding:0;}
+.left{
+	float: left;
+	width: 10%;
+	height: 100%;
+}
+.button_top{
+	width:50px;
+}
+.im{
+	float: right;
+	width: 80%;
+	height: 100%;
+}
+/*load*/
+span{
+	background-color:blue;
+}
+#load, #load-over{
+    position:fixed;
+    bottom:100px;
+	top:10%;
+	left:20%;
+	height:120px;
+    display:none;
+	font-size:100px;
+}
+/*****/
+/*returnTop*/
+p#back-to-top{
+    position:fixed;
+    display:none;
+    bottom:100px;
+    left:5%;
+}
+p#back-to-top a{
+    text-align:center;
+    text-decoration:none;
+    display:block;
+    width:64px;
+    /*使用CSS3中的transition属性给跳转链接中的文字添加渐变效果*/
+    -moz-transition:color 1s;
+    -webkit-transition:color 1s;
+    -o-transition:color 1s;
+}
+p#back-to-top a:hover{
+    color:red;
+}
+p#back-to-top a span{
+    background:transparent url(static/img/GoTop.png) no-repeat -25px -290px;
+    border-radius:6px;
+    display:block;
+    height:64px;
+    width:56px;
+    margin-bottom:5px;
+    /*使用CSS3中的transition属性给<span>标签背景颜色添加渐变效果*/
+    -moz-transition:background 1s;
+    -webkit-transition:background 1s;
+    -o-transition:background 1s;
+}
+#back-to-top a:hover span{
+    background:transparent url(static/img/GoTop.png) no-repeat -25px -290px;
+}
+/****/

@@ -1,0 +1,82 @@
+<?php
+require('config.php');
+
+function get_uids()
+{
+	$db = DB::getInstance();
+	$fields = array('count(issign) as a, uid');
+	$params = array(
+		'where'=>array(
+			'issign=1',
+		),
+		'group' => 'uid', 
+		'order' => 'a desc', 
+	);
+	$re = $db->select(array(DB_TABLE), $fields, $params);
+	return $re;
+}
+$uids = get_uids();
+?>
+<html>
+	<head>
+		<title>数据分析</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<link rel="shortcut icon" href="favicon.ico" />
+		<link rel="stylesheet" type="text/css" href="1.css" />
+	</head>
+	<body>
+	<div class='left'>
+	前: <select name='actnum' id='actnum'>
+		<?php  
+			for ($i=0;$i<601;$i=$i+5) {
+				if ($i == 100) {
+		?>
+				<option value ="<?php echo $i;?>" selected><?php echo $i;?></option>
+		<?php } else {?>
+				<option value ="<?php echo $i;?>"><?php echo $i;?></option>
+		<?php	}}?>
+			</select>个活动
+	用户id: <select name='uid' id='uid'/>
+	<?php  foreach ($uids as $uid) {?>
+		<option value =<?php echo $uid->uid;?>><?php echo $uid->uid;?></option>
+	<?php } ?>
+	</select>
+	<input type="submit" value="analyze" id="btn"></br>
+	</div>
+	<div class="im">
+	</div>
+		<script src="jquery.js"></script>
+	<script type="text/javascript">
+		$("#btn").click(function() {
+			var mydate = new Date();
+			var index = $("#index").val();
+			var uid = $("#uid").val();
+			var index2 = $("#index2").val();
+			var postData = {
+				uid: uid,
+				index: index,
+				index2: index2,
+				actnum: $("#actnum").val(),
+			};
+			$.ajax({
+				type: 'POST',
+				url: 'analyze.php?time='+mydate.getTime(),
+				data: postData,
+				success: function(result){
+					$(".im").empty();
+					var obj = JSON.parse(result);
+					for(var i in obj){
+						var o = obj[i];
+						$(".im").append(
+							"<img src='img/"+o.name+'.png'+'?'+mydate.getTime()+"' name='vimg' width='500' height='250'/>"
+						);
+					}
+					/*
+					$("#vimg").attr('src', 'img/'+index+'-'+index2+'-'+uid+'.png'+'?'+mydate.getTime());
+					*/
+				}
+			});
+		});
+	</script>
+	</body>
+</html>
