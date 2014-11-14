@@ -136,7 +136,7 @@ function get_charts($uid, $index, $index2, $actnum, $type='nomal')
 	}
 	$graph->title->Set($filename);
   
-  $img = '/home/liufang/webtest/analyze_1/img/'.$filename.'.png';
+  $img = IMG_PATH.$filename.IMG_TYPE;
 	// 显示图 
 	$graph->Stroke($img);
 	return array('name'=>$filename, 'src'=>$img);
