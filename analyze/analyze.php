@@ -1,4 +1,5 @@
 <?php
+ini_set('max_execution_time', '50');
 require('config.php');
 
 
@@ -16,6 +17,7 @@ function get_x($index, $uid, $index2, $num=0)
 		default:
 			break;
 	}
+	$fields[] = 'uid';
 	$params = array(
 		'where' => array(
 			'uid='.$uid,
@@ -25,7 +27,8 @@ function get_x($index, $uid, $index2, $num=0)
 	);
 	if (!empty($num)) $params['limit'] = $num;
 	//uid有多个
-	if ( strpos($uid, ',') !== false ) {
+	if ( is_array($uid) ) {
+		$uid = implode(',', $uid);
 		$params['where'] = array(
 			'uid in (' . $uid . ')',
 			'ver=0',
@@ -35,19 +38,23 @@ function get_x($index, $uid, $index2, $num=0)
 	return $re;
 }
 
-function get_y($x, $num, $index2)
+function get_y($x, $num, $index2, $type)
 {
 	$i = 0;
 	foreach ($x as $st) {
-	switch ($index2) {
-		case 'issign':
-			$param = $st->issign;
-			break;
-		case 'isclicked':
-			$param = $st->isclicked;
-			break;
-		default:
-			break;
+	if ( $type == 'single') {
+		switch ($index2) {
+			case 'issign':
+				$param = $st->issign;
+				break;
+			case 'isclicked':
+				$param = $st->isclicked;
+				break;
+			default:
+				break;
+		}
+	} else if ( $type == 'multiple') {
+		$param = $st;
 	}
 		if ($param == 1) $i++; 
 	}
@@ -72,35 +79,74 @@ function get_tops($num)
 	return $re;
 }
 
-//获取图表
-function get_charts($uid, $index, $index2, $actnum, $type='nomal')
+//获取活动
+function get_act($type, $uid, $index, $index2)
 {
-	//刻度
-	$xscale = floor($actnum/10);
-	//error_log('scale=='.var_export($xscale,true).chr(10),3,'/tmp/lf.log');
-	// y 轴数据，以数组形式赋值  
+	if ($type == 'single') {
+		$x = get_x($index, $uid, $index2); //获取活动
+	} else if ( $type == 'multiple' ) {
+		$x = get_x($index, $uid, $index2); //获取活动
+		$new = array();
+		foreach ($x as $stat) {
+			if ( $index2 == 'issign') {
+				$new[$stat->uid][] = $stat->issign;
+			} else if ($index2 == 'isclicked') {
+				$new[$stat->uid][] = $stat->isclicked;
+			}
+		}
+	}
+	if (!isset($new)) {
+		$new = array();
+	}
+	return array('x'=>$x, 'new'=>$new);
+}
+
+//处理数据
+function handle_data($type, $uid, $index, $index2, $xscale, $actnum, $x)
+{
+	// y 轴数据，以数组形式赋值
 	$ydata = array();
-//$start = gettimeofday(true);
-	$x = get_x($index, $uid, $index2);
-//$waste = gettimeofday(true) - $start;
-//	error_log('time=='.var_export($waste,true).chr(10),3,'/tmp/lf.log');
 	$t = array();
-	$xdata = array();  
+	$xdata = array();
 	$i = 0;
+	$uidNum = count($uid);
+	$new = $x['new'];
+	$x = $x['x'];
 	while($i<=$actnum){
 		if ($i==0) {
 			$ydata[] = 0;
-			//$t = array_slice($x, 0, $i+$xscale);
-			//$ydata[] = get_y($t, $i, $index2);
 			$xdata[] = 0;
 		} else {
-			$t = array_slice($x, $l, $xscale);
-			$ydata[] = get_y($t, $xscale, $index2);
+			if ($type == 'single') {
+				$t = array_slice($x, $l, $xscale);
+				$ydata[] = get_y($t, $xscale, $index2, $type); //得到比例
+			} else if ($type == 'multiple') {
+				foreach ($new as $uids) {
+					$t = array_slice($uids, $l, $xscale);
+					$y[] = get_y($t, $xscale, $index2, $type); //得到比例
+				}
+				$sum = array_sum($y);
+				$ydata[] = $sum / $uidNum;
+				unset($y);
+			}
 			$xdata[] = $i;
 		}
 		$l = $i;
 		$i = $i+$xscale;
 	}
+	return array('y'=>$ydata, 'x'=>$xdata);
+}
+
+//获取图表
+function get_charts($uid, $index, $index2, $actnum, $type)
+{
+	//刻度
+	$xscale = floor($actnum/10);
+	$x = get_act($type, $uid, $index, $index2);
+	$datas = handle_data($type, $uid, $index, $index2, $xscale, $actnum, $x);
+	$ydata = $datas['y'];
+	$xdata = $datas['x'];
+//	error_log('datas==='.var_export($datas,true).chr(10),3,'/tmp/lf.log');
 
 	//y轴自适应
 	$yMax = max($ydata);
@@ -129,7 +175,7 @@ function get_charts($uid, $index, $index2, $actnum, $type='nomal')
 	// 坐标类注入图标类  
 	$graph->Add($lineplot);
 
-	if ( strpos($uid, ',') === false) {
+	if ( !is_array($uid) ) {
 		$filename = $index . '-' . $index2 . '-' . $uid;
 	} else {
 		$filename = $index . '-' . $index2;
@@ -157,21 +203,18 @@ $index2 = array('issign', 'isclicked');
 $uid = isset($_POST['uid']) ? $_POST['uid'] : 0;
 $actnum = isset($_POST['actnum']) ? $_POST['actnum'] : 0;
 $userNum = isset($_POST['userNum']) ? $_POST['userNum'] : 0;
-if ( empty($uid) && empty($actnum) && $userNum) { //多个用户
+$type = 'single';
+if ( empty($uid) && $userNum) { //多个用户
 	$uids = get_tops($userNum);
-	$uid = '';
+	$uid = array();
 	foreach ($uids as $one) {
-		$uid .= $one->uid . ',';
+		$uid[] =  $one->uid;
 	}
-	$uid = trim($uid, ',');
-	$actnum = '600';
+	$type = 'multiple';
 }
 foreach ($index2 as $i2) {
 	foreach ($index as $i) {
-//$start = gettimeofday(true);
-		$imgs[] = get_charts($uid, $i, $i2, $actnum);
-//$waste = gettimeofday(true) - $start;
-	//error_log('time=='.var_export($waste,true).chr(10),3,'/tmp/lf.log');
+		$imgs[] = get_charts($uid, $i, $i2, $actnum, $type);
 	}
 }
 echo json_encode($imgs);

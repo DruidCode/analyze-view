@@ -47,7 +47,7 @@ p#back-to-top a:hover{
     color:red;
 }
 p#back-to-top a span{
-    background:transparent url(static/img/GoTop.png) no-repeat -25px -290px;
+    background:transparent url(../img/GoTop.png) no-repeat -25px -290px;
     border-radius:6px;
     display:block;
     height:64px;
@@ -59,6 +59,6 @@ p#back-to-top a span{
     -o-transition:background 1s;
 }
 #back-to-top a:hover span{
-    background:transparent url(static/img/GoTop.png) no-repeat -25px -290px;
+    background:transparent url(../img/GoTop.png) no-repeat -25px -290px;
 }
 /****/

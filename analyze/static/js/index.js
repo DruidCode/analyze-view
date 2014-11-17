@@ -45,6 +45,7 @@ $(".button_top").change(function() {
 	var userNum = $(this).attr("value");
 	var postData = {
 		userNum: userNum,
+		actnum: $("#actnum").val(),
 	}
 	//加载数据显示
 	$("#load").css('display', 'block');
