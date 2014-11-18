@@ -89,7 +89,7 @@ class DB {
 
     //查询
     public function select($_tables, Array $_fileld, Array $_param = array()) {
-        $_limit = $_order = $_where = $_like = '';
+        $_limit = $_order = $_where = $_like = $_other = '';
         if (is_array($_param) && !empty($_param)) {
             $_limit = isset($_param['limit']) ? 'LIMIT '.$_param['limit'] : '';
             $_order = isset($_param['order']) ? 'ORDER BY '.$_param['order'] : '';
@@ -105,11 +105,14 @@ class DB {
                     $_like = "WHERE $_key LIKE '%$_value%'";
                 }
             }
+			if (isset($_param['other'])) {
+				$_other = $_param['other'];
+			}
         }
         $_selectFields = implode(',', $_fileld);
         $_table = isset($_tables[1]) ? $_tables[0].','.$_tables[1] : $_tables[0];
-        $_sql = "SELECT $_selectFields FROM $_table $_where $_like $_group $_order $_limit";
-//	error_log('sql=='.var_export($_sql,true).chr(10),3,'/tmp/lf.log');
+        $_sql = "SELECT $_selectFields FROM $_table $_other $_where $_like $_group $_order $_limit";
+	error_log('sql=='.var_export($_sql,true).chr(10),3,'/tmp/lf.log');
         $_stmt = $this->execute($_sql);
         $_result = array();
         while (!!$_objs = $_stmt->fetchObject()) {

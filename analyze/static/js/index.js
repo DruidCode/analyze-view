@@ -22,9 +22,12 @@ $(".button").click(function() {
 			var obj = JSON.parse(result);
 			for(var i in obj){
 				var o = obj[i];
-				$(".im").append(
-					"<img src='img/"+o.name+'.png'+'?'+mydate.getTime()+"' name='vimg' width='500' height='250'/>"
-				);
+				var name = o.name;
+				for (var l in name) {
+					$(".im").append(
+						"<img src='img/"+name[l]+'.png'+'?'+mydate.getTime()+"' name='vimg' width='500' height='250'/>"
+					);
+				}
 			}
 			//返回成功后置顶
 			$('body,html').animate({scrollTop:0},1000);
@@ -58,9 +61,12 @@ $(".button_top").change(function() {
 			var obj = JSON.parse(result);
 			for(var i in obj){
 				var o = obj[i];
-				$(".im").append(
-					"<img src='img/"+o.name+'.png'+'?'+mydate.getTime()+"' name='vimg' width='500' height='250'/>"
-				);
+				var name = o.name;
+				for (var l in name) {
+					$(".im").append(
+						"<img src='img/"+name[l]+'.png'+'?'+mydate.getTime()+"' name='vimg' width='500' height='250'/>"
+					);
+				}
 			}
 			//返回成功后置顶
 			$('body,html').animate({scrollTop:0},1000);

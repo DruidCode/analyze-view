@@ -1,12 +1,14 @@
 <?php
 ini_set('max_execution_time', '50');
+ini_set('memory_limit', '500M');
 require('config.php');
 
 
 //获取x轴
-function get_x($index, $uid, $index2, $num=0)
+function get_x($index, $uid, $index2, $userNum, $num=0)
 {
 	$db = DB::getInstance();
+	/*
 	switch ($index2) {
 		case 'issign':
     		$fields = array('issign');
@@ -17,7 +19,9 @@ function get_x($index, $uid, $index2, $num=0)
 		default:
 			break;
 	}
-	$fields[] = 'uid';
+	*/
+	$fields = $index2;
+	$tmp = 'uid';
 	$params = array(
 		'where' => array(
 			'uid='.$uid,
@@ -28,13 +32,17 @@ function get_x($index, $uid, $index2, $num=0)
 	if (!empty($num)) $params['limit'] = $num;
 	//uid有多个
 	if ( is_array($uid) ) {
+		$tmp = 'a.uid';
 		$uid = implode(',', $uid);
-		$params['where'] = array(
-			'uid in (' . $uid . ')',
-			'ver=0',
+		$params = array(
+			'other' => ' as a INNER JOIN (SELECT uid FROM haha LIMIT '.$userNum.') as b ON a.uid = b.uid AND ver=0  ORDER BY '.$index.' DESC',
 		);
 	}
+	$fields[] = $tmp;
+	$start = gettimeofday(true);
 	$re = $db->select(array(DB_TABLE), $fields, $params);
+	$time = gettimeofday(true) - $start;
+	error_log('sql time==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
 	return $re;
 }
 
@@ -66,6 +74,7 @@ function get_y($x, $num, $index2, $type)
 function get_tops($num)
 {
 	$db = DB::getInstance();
+	/*
 	$fields = array('count(issign) as a, uid');
 	$params = array(
 		'where'=>array(
@@ -75,25 +84,30 @@ function get_tops($num)
 		'order' => 'a desc', 
 		'limit' => $num,
 	);
+	*/
+	$fields = array('uid');
+	$params = array(
+		'limit' => $num,
+	);
 	$re = $db->select(array(DB_TABLE), $fields, $params);
 	return $re;
 }
 
 //获取活动
-function get_act($type, $uid, $index, $index2)
+function get_act($type, $uid, $index, $index2, $userNum)
 {
 	if ($type == 'single') {
-		$x = get_x($index, $uid, $index2); //获取活动
+		$x = get_x($index, $uid, $index2, $userNum); //获取活动
 	} else if ( $type == 'multiple' ) {
-		$x = get_x($index, $uid, $index2); //获取活动
+		$x = get_x($index, $uid, $index2, $userNum); //获取活动
 		$new = array();
+		//$start = gettimeofday(true);
 		foreach ($x as $stat) {
-			if ( $index2 == 'issign') {
-				$new[$stat->uid][] = $stat->issign;
-			} else if ($index2 == 'isclicked') {
-				$new[$stat->uid][] = $stat->isclicked;
-			}
+			$new['issign'][$stat->uid][] = $stat->issign;
+			$new['isclicked'][$stat->uid][] = $stat->isclicked;
 		}
+		//$time = gettimeofday(true)-$start;
+	//error_log('foreach一次时间==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
 	}
 	if (!isset($new)) {
 		$new = array();
@@ -110,18 +124,18 @@ function handle_data($type, $uid, $index, $index2, $xscale, $actnum, $x)
 	$xdata = array();
 	$i = 0;
 	$uidNum = count($uid);
-	$new = $x['new'];
-	$x = $x['x'];
+	//$new = $x['new'][$index2];
+	$xd = $x['x'];
 	while($i<=$actnum){
 		if ($i==0) {
 			$ydata[] = 0;
 			$xdata[] = 0;
 		} else {
 			if ($type == 'single') {
-				$t = array_slice($x, $l, $xscale);
+				$t = array_slice($xd, $l, $xscale);
 				$ydata[] = get_y($t, $xscale, $index2, $type); //得到比例
 			} else if ($type == 'multiple') {
-				foreach ($new as $uids) {
+				foreach ($x['new'][$index2] as $uids) {
 					$t = array_slice($uids, $l, $xscale);
 					$y[] = get_y($t, $xscale, $index2, $type); //得到比例
 				}
@@ -138,12 +152,19 @@ function handle_data($type, $uid, $index, $index2, $xscale, $actnum, $x)
 }
 
 //获取图表
-function get_charts($uid, $index, $index2, $actnum, $type)
+//index2 array('issign', 'isclicked')
+function get_charts($uid, $index, $index2, $actnum, $type, $userNum)
 {
 	//刻度
 	$xscale = floor($actnum/10);
-	$x = get_act($type, $uid, $index, $index2);
-	$datas = handle_data($type, $uid, $index, $index2, $xscale, $actnum, $x);
+	$start = gettimeofday(true);
+	$x = get_act($type, $uid, $index, $index2, $userNum);
+	$time = gettimeofday(true) - $start;
+	error_log('获取活动一次时间==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
+	$filenames = array();
+	$imgs = array();
+	foreach ($index2 as $i2) {
+	$datas = handle_data($type, $uid, $index, $i2, $xscale, $actnum, $x);
 	$ydata = $datas['y'];
 	$xdata = $datas['x'];
 //	error_log('datas==='.var_export($datas,true).chr(10),3,'/tmp/lf.log');
@@ -176,16 +197,19 @@ function get_charts($uid, $index, $index2, $actnum, $type)
 	$graph->Add($lineplot);
 
 	if ( !is_array($uid) ) {
-		$filename = $index . '-' . $index2 . '-' . $uid;
+		$filename = $index . '-' . $i2 . '-' . $uid;
 	} else {
-		$filename = $index . '-' . $index2;
+		$filename = $index . '-' . $i2;
 	}
 	$graph->title->Set($filename);
   
   $img = IMG_PATH.$filename.IMG_TYPE;
+	$filenames[] = $filename;
+	$imgs[] = $img;
 	// 显示图 
 	$graph->Stroke($img);
-	return array('name'=>$filename, 'src'=>$img);
+	}
+	return array('name'=>$filenames);
 }
 $index = array(
 	'docsimv',
@@ -212,9 +236,10 @@ if ( empty($uid) && $userNum) { //多个用户
 	}
 	$type = 'multiple';
 }
-foreach ($index2 as $i2) {
-	foreach ($index as $i) {
-		$imgs[] = get_charts($uid, $i, $i2, $actnum, $type);
-	}
+$start = gettimeofday(true);
+foreach ($index as $i) {
+	$imgs[] = get_charts($uid, $i, $index2, $actnum, $type, $userNum);
 }
+$time = gettimeofday(true) - $start;
+	error_log('all time==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
 echo json_encode($imgs);
