@@ -4,70 +4,57 @@ ini_set('memory_limit', '500M');
 require('config.php');
 
 
-//获取x轴
-function get_x($index, $uid, $index2, $userNum, $num=0)
+//获取活动
+function get_act($uid, $index, $index2, $userNum)
 {
 	$db = DB::getInstance();
-	/*
-	switch ($index2) {
-		case 'issign':
-    		$fields = array('issign');
-			break;
-		case 'isclicked':
-    		$fields = array('isclicked');
-			break;
-		default:
-			break;
-	}
-	*/
-	$fields = $index2;
-	$tmp = 'uid';
 	$params = array(
 		'where' => array(
 			'uid='.$uid,
-			'ver=0',
 		),
 		'order' => $index . ' DESC', 
 	);
-	if (!empty($num)) $params['limit'] = $num;
+	if (!empty($num)) $params['limit'] = $userNum;
+	$fields = array('uid', 'issign', 'isclicked');
 	//uid有多个
 	if ( is_array($uid) ) {
-		$tmp = 'a.uid';
-		$uid = implode(',', $uid);
-		$params = array(
-			'other' => ' as a INNER JOIN (SELECT uid FROM haha LIMIT '.$userNum.') as b ON a.uid = b.uid AND ver=0  ORDER BY '.$index.' DESC',
-		);
+		$new = array();
+		foreach ($uid as $ui) {
+			$params = array(
+				'where'=>array(
+					'uid='.$ui,
+				),
+				'order' => $index . ' DESC',
+			);
+			$re = $db->select(array(DB_TABLE), $fields, $params);
+			$new[$ui] = $re;
+		}
+        return $new;
+	} else {
+		$re = $db->select(array(DB_TABLE), $fields, $params);
+		return $re;
 	}
-	$fields[] = $tmp;
-	$start = gettimeofday(true);
-	$re = $db->select(array(DB_TABLE), $fields, $params);
-	$time = gettimeofday(true) - $start;
-	error_log('sql time==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
-	return $re;
 }
 
-function get_y($x, $num, $index2, $type)
+function get_y($x, $type)
 {
 	$i = 0;
+	$l = 0;
 	foreach ($x as $st) {
-	if ( $type == 'single') {
-		switch ($index2) {
-			case 'issign':
-				$param = $st->issign;
-				break;
-			case 'isclicked':
-				$param = $st->isclicked;
-				break;
-			default:
-				break;
+		if ( $type == 'single') {
+			if ($st->issign == 1) $i++;
+			if ($st->isclicked == 1) $l++;
+		} else if ( $type == 'multiple') {
+			foreach ($st as $s) {
+				if ($s->issign == 1) $i++;
+				if ($s->isclicked == 1) $l++;
+			}
 		}
-	} else if ( $type == 'multiple') {
-		$param = $st;
 	}
-		if ($param == 1) $i++; 
-	}
-	$y = $i / $num;
-	return $y;
+	$is_acts_num = array();
+	$is_acts_num['issign'] = $i;
+	$is_acts_num['isclicked'] = $l;
+	return $is_acts_num;
 }
 
 //获取前面几个uid
@@ -87,68 +74,54 @@ function get_tops($num)
 	*/
 	$fields = array('uid');
 	$params = array(
+		'order' => 'id', 
 		'limit' => $num,
 	);
-	$re = $db->select(array(DB_TABLE), $fields, $params);
+	$re = $db->select(array(DB_TABLE_UID), $fields, $params);
 	return $re;
 }
 
-//获取活动
-function get_act($type, $uid, $index, $index2, $userNum)
-{
-	if ($type == 'single') {
-		$x = get_x($index, $uid, $index2, $userNum); //获取活动
-	} else if ( $type == 'multiple' ) {
-		$x = get_x($index, $uid, $index2, $userNum); //获取活动
-		$new = array();
-		//$start = gettimeofday(true);
-		foreach ($x as $stat) {
-			$new['issign'][$stat->uid][] = $stat->issign;
-			$new['isclicked'][$stat->uid][] = $stat->isclicked;
-		}
-		//$time = gettimeofday(true)-$start;
-	//error_log('foreach一次时间==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
-	}
-	if (!isset($new)) {
-		$new = array();
-	}
-	return array('x'=>$x, 'new'=>$new);
-}
-
 //处理数据
-function handle_data($type, $uid, $index, $index2, $xscale, $actnum, $x)
+//$actnum  前几个活动
+//$userNum TOP个用户
+function handle_data($type, $uid, $index, $xscale, $actnum, $x, $userNum)
 {
 	// y 轴数据，以数组形式赋值
 	$ydata = array();
 	$t = array();
 	$xdata = array();
 	$i = 0;
-	$uidNum = count($uid);
-	//$new = $x['new'][$index2];
-	$xd = $x['x'];
+	if ($type == 'multiple') $x = array_slice($x, 0, $userNum);  //取出top个用户数据
 	while($i<=$actnum){
 		if ($i==0) {
-			$ydata[] = 0;
+			$ydata['isclicked'][] = 0;
+			$ydata['issign'][] = 0;
 			$xdata[] = 0;
 		} else {
 			if ($type == 'single') {
-				$t = array_slice($xd, $l, $xscale);
-				$ydata[] = get_y($t, $xscale, $index2, $type); //得到比例
+				$t = array_slice($x, $l, $xscale);
+				$is_acts_num  = get_y($t, $type); //得到已报名或已点击
+				$all_acts_num = $xscale; //总活动数
 			} else if ($type == 'multiple') {
-				foreach ($x['new'][$index2] as $uids) {
-					$t = array_slice($uids, $l, $xscale);
-					$y[] = get_y($t, $xscale, $index2, $type); //得到比例
+				$all_acts = array(); //这一段所有活动
+				foreach ($x as $userid=>$acts) {
+					$all_acts[] = array_slice($acts, $l, $xscale);
 				}
-				$sum = array_sum($y);
-				$ydata[] = $sum / $uidNum;
-				unset($y);
+				$is_acts_num = get_y($all_acts, $type); //已报名或已点击活动
+				$all_acts_num = count($all_acts, 1); //总活动数
 			}
+			$ydata['isclicked'][] = $is_acts_num['isclicked'] / $all_acts_num;
+			$ydata['issign'][] = $is_acts_num['issign'] / $all_acts_num;
 			$xdata[] = $i;
 		}
 		$l = $i;
 		$i = $i+$xscale;
 	}
-	return array('y'=>$ydata, 'x'=>$xdata);
+	return array(
+		'isclicked' => $ydata['isclicked'],
+		'issign' => $ydata['issign'],
+		'x' => $xdata,
+	);
 }
 
 //获取图表
@@ -157,17 +130,14 @@ function get_charts($uid, $index, $index2, $actnum, $type, $userNum)
 {
 	//刻度
 	$xscale = floor($actnum/10);
-	$start = gettimeofday(true);
-	$x = get_act($type, $uid, $index, $index2, $userNum);
-	$time = gettimeofday(true) - $start;
-	error_log('获取活动一次时间==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
 	$filenames = array();
 	$imgs = array();
+
+	$x = get_act($uid, $index, $index2, $userNum);
+	$datas = handle_data($type, $uid, $index, $xscale, $actnum, $x, $userNum);
 	foreach ($index2 as $i2) {
-	$datas = handle_data($type, $uid, $index, $i2, $xscale, $actnum, $x);
-	$ydata = $datas['y'];
+	$ydata = $datas[$i2];
 	$xdata = $datas['x'];
-//	error_log('datas==='.var_export($datas,true).chr(10),3,'/tmp/lf.log');
 
 	//y轴自适应
 	$yMax = max($ydata);
@@ -211,6 +181,7 @@ function get_charts($uid, $index, $index2, $actnum, $type, $userNum)
 	}
 	return array('name'=>$filenames);
 }
+//9个指标
 $index = array(
 	'docsimv',
 	'feature1',
@@ -225,8 +196,8 @@ $index = array(
 $imgs = array();
 $index2 = array('issign', 'isclicked');
 $uid = isset($_POST['uid']) ? $_POST['uid'] : 0;
-$actnum = isset($_POST['actnum']) ? $_POST['actnum'] : 0;
-$userNum = isset($_POST['userNum']) ? $_POST['userNum'] : 0;
+$actnum = isset($_POST['actnum']) ? $_POST['actnum'] : 0; //前几个活动
+$userNum = isset($_POST['userNum']) ? $_POST['userNum'] : 0; //top几个用户
 $type = 'single';
 if ( empty($uid) && $userNum) { //多个用户
 	$uids = get_tops($userNum);
@@ -236,10 +207,7 @@ if ( empty($uid) && $userNum) { //多个用户
 	}
 	$type = 'multiple';
 }
-$start = gettimeofday(true);
 foreach ($index as $i) {
 	$imgs[] = get_charts($uid, $i, $index2, $actnum, $type, $userNum);
 }
-$time = gettimeofday(true) - $start;
-	error_log('all time==='.var_export($time,true).chr(10),3,'/tmp/lf.log');
 echo json_encode($imgs);

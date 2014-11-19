@@ -4,6 +4,7 @@ define('DB_USER', 'test');
 define('DB_PASS', 'test-045@');
 define('DB_CHARSET', 'utf8');
 define('DB_TABLE', 'activity_dimension2');
+define('DB_TABLE_UID', 'haha');
 define('IMG_PATH', '/home/liufang/webtest/analyze-view/analyze/img/');
 define('IMG_TYPE', '.png');
 

@@ -112,7 +112,6 @@ class DB {
         $_selectFields = implode(',', $_fileld);
         $_table = isset($_tables[1]) ? $_tables[0].','.$_tables[1] : $_tables[0];
         $_sql = "SELECT $_selectFields FROM $_table $_other $_where $_like $_group $_order $_limit";
-	error_log('sql=='.var_export($_sql,true).chr(10),3,'/tmp/lf.log');
         $_stmt = $this->execute($_sql);
         $_result = array();
         while (!!$_objs = $_stmt->fetchObject()) {
