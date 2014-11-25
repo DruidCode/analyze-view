@@ -108,10 +108,15 @@ function handle_data($type, $uid, $index, $xscale, $actnum, $x, $userNum)
 					$all_acts[] = array_slice($acts, $l, $xscale);
 				}
 				$is_acts_num = get_y($all_acts, $type); //已报名或已点击活动
-				$all_acts_num = count($all_acts, 1); //总活动数
+				$all_acts_num = count($all_acts, 1) - count($all_acts); //总活动数
 			}
-			$ydata['isclicked'][] = $is_acts_num['isclicked'] / $all_acts_num;
-			$ydata['issign'][] = $is_acts_num['issign'] / $all_acts_num;
+			if ($all_acts_num <= 0 ) {
+				$ydata['isclicked'][] = 0;
+				$ydata['issign'][] = 0;
+			} else {
+				$ydata['isclicked'][] = $is_acts_num['isclicked'] / $all_acts_num;
+				$ydata['issign'][] = $is_acts_num['issign'] / $all_acts_num;
+			}
 			$xdata[] = $i;
 		}
 		$l = $i;
